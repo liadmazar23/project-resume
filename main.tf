@@ -53,9 +53,6 @@ resource "aws_instance" "jenkins" {
   sudo su - ec2-user -c 'docker run -d -p 4040:80 --name nginx nginx'
 
   # Wait for Jenkins to start
-  sleep 60
-
-  # Check if Jenkins is running
   for i in {1..10}; do
     if curl -s http://localhost:8080/login | grep -q "Jenkins"; then
       echo "Jenkins is up and running"
@@ -68,26 +65,39 @@ resource "aws_instance" "jenkins" {
   EOF
 
   provisioner "remote-exec" {
-      inline = [
-          "sleep 120",  # Wait for Jenkins to initialize and create the password file
-          "if [ -f /mnt/jenkins_data/secrets/initialAdminPassword ]; then sudo cat /mnt/jenkins_data/secrets/initialAdminPassword > /tmp/jenkins_initial_admin_password.txt; else echo 'Jenkins initialAdminPassword file not found' && exit 1; fi"
-      ]
+    inline = [
+      "attempts=0",
+      "max_attempts=10",
+      "while [ $attempts -lt $max_attempts ]; do",
+      "  if [ -f /mnt/jenkins_data/secrets/initialAdminPassword ]; then",
+      "    sudo cat /mnt/jenkins_data/secrets/initialAdminPassword > /tmp/jenkins_initial_admin_password.txt",
+      "    break",
+      "  else",
+      "    echo 'Waiting for Jenkins initialAdminPassword file...'",
+      "    sleep 10",
+      "  fi",
+      "  attempts=$((attempts + 1))",
+      "done",
+      "if [ $attempts -ge $max_attempts ]; then",
+      "  echo 'Jenkins initialAdminPassword file not found' && exit 1",
+      "fi"
+    ]
 
-      connection {
-          type        = "ssh"
-          user        = "ec2-user"
-          private_key = file(var.private_key_path)
-          host        = self.public_ip
-      }
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file(var.private_key_path)
+      host        = self.public_ip
+    }
   }
 
   provisioner "local-exec" {
-      command = <<-EOF
-          scp -o StrictHostKeyChecking=no -i ${var.private_key_path} ec2-user@${self.public_ip}:/tmp/jenkins_initial_admin_password.txt ./jenkins_initial_admin_password.txt
-          echo "Jenkins initial admin password is:"
-          cat ./jenkins_initial_admin_password.txt
-          rm ./jenkins_initial_admin_password.txt
-      EOF
+    command = <<-EOF
+      scp -o StrictHostKeyChecking=no -i ${var.private_key_path} ec2-user@${self.public_ip}:/tmp/jenkins_initial_admin_password.txt ./jenkins_initial_admin_password.txt
+      echo "Jenkins initial admin password is:"
+      cat ./jenkins_initial_admin_password.txt
+      rm ./jenkins_initial_admin_password.txt
+    EOF
   }
 }
 
