@@ -49,6 +49,9 @@ resource "aws_instance" "jenkins" {
   # Run Jenkins container as ec2-user
   sudo su - ec2-user -c 'docker run -d -p 8080:8080 -p 50000:50000 --name jenkins -v /mnt/jenkins_data:/var/jenkins_home jenkins/jenkins:lts'
 
+  # Run Nginx container as ec2-user
+  sudo su - ec2-user -c 'docker run -d -p 4040:80 --name nginx nginx'
+
   # Wait for Jenkins to start
   sleep 60
 
@@ -112,6 +115,13 @@ resource "aws_security_group" "jenkins_sg" {
   ingress {
       from_port   = 8080
       to_port     = 8080
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+      from_port   = 4040
+      to_port     = 4040
       protocol    = "tcp"
       cidr_blocks = ["0.0.0.0/0"]
   }
