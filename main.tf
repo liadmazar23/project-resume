@@ -8,28 +8,28 @@ resource "aws_instance" "jenkins" {
   key_name      = "us-west-2-key" # Replace with your key name
 
   root_block_device {
-      volume_type = "gp2"
-      volume_size = 8
+    volume_type = "gp2"
+    volume_size = 8
   }
 
   ebs_block_device {
-      device_name = "/dev/sdf"
-      volume_size = 10
+    device_name = "/dev/sdf"
+    volume_size = 10
   }
 
   security_groups = [aws_security_group.jenkins_sg.name]
 
   tags = {
-      Name = "Jenkins Server"
+    Name = "Jenkins Server"
   }
 
   user_data = <<-EOF
   #!/bin/bash
   exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-  
+
   # Update the package database
   sudo yum update -y
-  
+
   # Install Docker
   sudo yum install -y docker
 
@@ -49,8 +49,50 @@ resource "aws_instance" "jenkins" {
   # Run Jenkins container as ec2-user
   sudo su - ec2-user -c 'docker run -d -p 8080:8080 -p 50000:50000 --name jenkins -v /mnt/jenkins_data:/var/jenkins_home jenkins/jenkins:lts'
 
-  # Run Nginx container as ec2-user
-  sudo su - ec2-user -c 'docker run -d -p 4040:80 --name nginx nginx'
+  # Create Nginx HTML file
+  cat <<EOT > /home/ec2-user/index.html
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <title>Liad's Resume Server</title>
+    <style>
+      body {
+        background-color: skyblue;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      .container {
+        text-align: center;
+      }
+      .icon {
+        width: 50px;
+        height: 50px;
+        margin: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Hi, Welcome to My Resume website! Here you can see my GitHub projects, my LinkedIn account and my Resume</h1>
+      <a href="https://www.linkedin.com/in/liad-mazar/" target="_blank">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/LinkedIn_logo_initials.png/480px-LinkedIn_logo_initials.png" alt="LinkedIn" class="icon">
+      </a>
+      <a href="https://github.com/liadmazar23/project-resume" target="_blank">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg" alt="GitHub" class="icon">
+      </a>
+    </div>
+  </body>
+  </html>
+  EOT
+
+  # Run Nginx container as ec2-user with custom HTML
+  sudo su - ec2-user -c 'docker run -d -p 4040:80 --name nginx -v /home/ec2-user/index.html:/usr/share/nginx/html/index.html nginx'
+
+  # Verify Nginx container is running
+  sudo su - ec2-user -c 'docker ps | grep nginx || echo "Nginx container failed to start"'
 
   # Wait for Jenkins to start
   for i in {1..10}; do
@@ -116,31 +158,31 @@ resource "aws_security_group" "jenkins_sg" {
   name_prefix = "jenkins-sg-"
 
   ingress {
-      from_port   = 22
-      to_port     = 22
-      protocol    = "tcp"
-      cidr_blocks = ["46.117.189.39/32"]
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["46.117.189.39/32"]
   }
 
   ingress {
-      from_port   = 8080
-      to_port     = 8080
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["46.117.189.39/32"]
   }
 
   ingress {
-      from_port   = 4040
-      to_port     = 4040
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
+    from_port   = 4040
+    to_port     = 4040
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = ["0.0.0.0/0"]
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
