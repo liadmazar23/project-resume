@@ -3,8 +3,8 @@ provider "aws" {
 }
 
 resource "aws_instance" "jenkins" {
-  ami           = "ami-0604d81f2fd264c7b" # Amazon Linux 2 AMI
-  instance_type = "t2.micro"
+  ami           = "ami-078701cc0905d44e4" # Amazon Linux 2 AMI
+  instance_type = "t2.medium"
   key_name      = "us-west-2-key" # Replace with your key name
 
   root_block_device {
