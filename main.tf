@@ -20,7 +20,7 @@ resource "aws_instance" "jenkins" {
   security_groups = [aws_security_group.jenkins_sg.name]
 
   tags = {
-    Name = "Jenkins Server"
+    Name = "Project-resume Server"
   }
 
   user_data = <<-EOF
